@@ -1,0 +1,9 @@
+ray/rllib/train.py   ~только парсит аргументы команды, и запускает  ray/tune/tune.py/run_experiments
+В этом файле ~@line170      while not runner.is_finished():
+                                    runner.step()
+При этом runner = TrialRunner(search_alg, <...>)   (@line156),   взятый из  ray.tune.trial_runner
+    в ray/tune/trial_runner.py @line41  сказано, что TrialRunner наследует классу object,  здесь -- "search_alg"-у наследует
+            (см.также trial_runner.py @line188 -- "runner = TrialRunner(search_alg or BasicVariantGenerator())"  но это в restore)
+    именно поэтому 
+    а в 
+    а ppo наследует 
