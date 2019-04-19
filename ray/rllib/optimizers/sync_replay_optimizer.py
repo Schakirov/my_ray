@@ -6,6 +6,7 @@ import collections
 import numpy as np
 
 import ray
+import time
 from ray.rllib.optimizers.replay_buffer import ReplayBuffer, \
     PrioritizedReplayBuffer
 from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
@@ -77,21 +78,21 @@ class SyncReplayOptimizer(PolicyOptimizer):
                 weights = ray.put(self.local_evaluator.get_weights())
                 for e in self.remote_evaluators:
                     e.set_weights.remote(weights)
-
         with self.sample_timer:
             if self.remote_evaluators:
+                print(self.remote_evaluators)
+                for e in self.remote_evaluators:
+                    print (e)
                 batch = SampleBatch.concat_samples(
                     ray.get(
                         [e.sample.remote() for e in self.remote_evaluators]))
             else:
                 batch = self.local_evaluator.sample()
-
             # Handle everything as if multiagent
             if isinstance(batch, SampleBatch):
                 batch = MultiAgentBatch({
                     DEFAULT_POLICY_ID: batch
                 }, batch.count)
-
             for policy_id, s in batch.policy_batches.items():
                 for row in s.rows():
                     self.replay_buffers[policy_id].add(
@@ -101,10 +102,10 @@ class SyncReplayOptimizer(PolicyOptimizer):
                         pack_if_needed(row["new_obs"]),
                         row["dones"],
                         weight=None)
-
         if self.num_steps_sampled >= self.replay_starts:
             self._optimize()
-
+        
+        self.replay_buffers[policy_id].save_buffer()
         self.num_steps_sampled += batch.count
 
     @override(PolicyOptimizer)

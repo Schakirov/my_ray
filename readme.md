@@ -12,3 +12,5 @@ python3.5 custom_env_3.py
 На вход подаётся изображение с веб-камеры.
 Реворд DQN = средняя освещенность камеры.
 На команду "right" оператор открывает камеру, на команду "left" закрывает.
+
+Кроме того, агент сохраняет experience memory  в del6/experience/experience.experience 

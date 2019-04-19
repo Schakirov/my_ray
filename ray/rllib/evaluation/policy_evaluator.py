@@ -8,6 +8,7 @@ import pickle
 import tensorflow as tf
 
 import ray
+import time
 from ray.rllib.env.atari_wrappers import wrap_deepmind, is_atari
 from ray.rllib.env.base_env import BaseEnv
 from ray.rllib.env.env_context import EnvContext
@@ -380,12 +381,13 @@ class PolicyEvaluator(EvaluatorInterface):
 
     @override(EvaluatorInterface)
     def sample(self):
+        print("sample begin")
+        print(self)
         """Evaluate the current policies and return a batch of experiences.
 
         Return:
             SampleBatch|MultiAgentBatch from evaluating the current policies.
         """
-
         batches = [self.input_reader.next()]
         steps_so_far = batches[0].count
 
@@ -398,6 +400,7 @@ class PolicyEvaluator(EvaluatorInterface):
 
         while steps_so_far < self.sample_batch_size and len(
                 batches) < max_batches:
+            #print("new sampling...")
             batch = self.input_reader.next()
             steps_so_far += batch.count
             batches.append(batch)

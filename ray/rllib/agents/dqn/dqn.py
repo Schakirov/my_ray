@@ -238,6 +238,7 @@ class DQNAgent(Agent):
 
     @override(Agent)
     def _train(self):
+        print("beginning_training")
         start_timestep = self.global_timestep
 
         # Update worker explorations
@@ -252,12 +253,18 @@ class DQNAgent(Agent):
 
         # Do optimization steps
         start = time.time()
+        print("111111")
         while (self.global_timestep - start_timestep <
                self.config["timesteps_per_iteration"]
                ) or time.time() - start < self.config["min_iter_time_s"]:
+            print("global_timestep = ", self.global_timestep)
+            print("start_timestep = ", start_timestep)
+            print("self.config('timesteps_per_iteration') = ", self.config["timesteps_per_iteration"])
             self.optimizer.step()
+            print("I've just made an optimization step!")
             self.update_target_if_needed()
-
+            print("target updated")
+        print("22222")
         if self.config["per_worker_exploration"]:
             # Only collect metrics from the third of workers with lowest eps
             result = self.optimizer.collect_metrics(
@@ -296,11 +303,13 @@ class DQNAgent(Agent):
         return self.optimizer.num_steps_sampled
 
     def _evaluate(self):
+        print("qwa-qwa")
         logger.info("Evaluating current policy for {} episodes".format(
             self.config["evaluation_num_episodes"]))
         self.evaluation_ev.restore(self.local_evaluator.save())
         self.evaluation_ev.foreach_policy(lambda p, _: p.set_epsilon(0))
         for _ in range(self.config["evaluation_num_episodes"]):
+            print("evaluating!")
             self.evaluation_ev.sample()
         metrics = collect_metrics(self.evaluation_ev)
         return {"evaluation": metrics}

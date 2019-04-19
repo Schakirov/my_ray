@@ -76,6 +76,7 @@ class SyncSampler(SamplerInput):
         self.metrics_queue = queue.Queue()
 
     def get_data(self):
+        print("get_data")
         while True:
             item = next(self.rollout_provider)
             if isinstance(item, RolloutMetrics):
@@ -274,8 +275,7 @@ def _env_runner(base_env,
     while True:
         # Get observations from all ready agents
         unfiltered_obs, rewards, dones, infos, off_policy_actions = \
-            base_env.poll()
-
+            base_env.poll()  #with no args (like action f.e.)... so just querying
         # Process observations and prepare for policy evaluation
         active_envs, to_eval, outputs = _process_observations(
             base_env, policies, batch_builder_pool, active_episodes,
@@ -283,16 +283,14 @@ def _env_runner(base_env,
             preprocessors, obs_filters, unroll_length, pack, callbacks)
         for o in outputs:
             yield o
-
         # Do batched policy eval
         eval_results = _do_policy_eval(tf_sess, to_eval, policies,
                                        active_episodes)
-
+        print("q_values = ", eval_results['default'][2]['q_values'])
         # Process results and update episode state
         actions_to_send = _process_policy_eval_results(
             to_eval, eval_results, active_episodes, active_envs,
             off_policy_actions, policies, clip_actions)
-
         # Return computed actions to ready envs. We also send to envs that have
         # taken off-policy actions; those envs are free to ignore the action.
         base_env.send_actions(actions_to_send)
@@ -465,7 +463,7 @@ def _do_policy_eval(tf_sess, to_eval, policies, active_episodes):
         builder = None
     for policy_id, eval_data in to_eval.items():
         rnn_in_cols = _to_column_format([t.rnn_state for t in eval_data])
-        policy = _get_or_raise(policies, policy_id)
+        policy = _get_or_raise(policies, policy_id) #ray.rllib.agents.dqn.dqn_policy_graph.DQNPolicyGraph object     <= print(policy)
         if builder and (policy.compute_actions.__code__ is
                         TFPolicyGraph.compute_actions.__code__):
             # TODO(ekl): how can we make info batch available to TF code?

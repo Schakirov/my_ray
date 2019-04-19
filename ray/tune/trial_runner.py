@@ -220,11 +220,17 @@ class TrialRunner(object):
         """
         if self.is_finished():
             raise TuneError("Called step when all trials finished?")
+
         self.trial_executor.on_step_begin()
         next_trial = self._get_next_trial()
+        print("next_trial = ", next_trial)
         if next_trial is not None:
             self.trial_executor.start_trial(next_trial)
+            import time
+            print("11111111111")
+            #time.sleep(5000)
         elif self.trial_executor.get_running_trials():
+            print("ha-ha\n\n\n")
             self._process_events()
         else:
             for trial in self._trials:

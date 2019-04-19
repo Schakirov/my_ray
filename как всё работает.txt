@@ -1,9 +1,104 @@
 ray/rllib/train.py   ~только парсит аргументы команды, и запускает  ray/tune/tune.py/run_experiments
-В этом файле ~@line170      while not runner.is_finished():
-                                    runner.step()
-При этом runner = TrialRunner(search_alg, <...>)   (@line156),   взятый из  ray.tune.trial_runner
-    в ray/tune/trial_runner.py @line41  сказано, что TrialRunner наследует классу object,  здесь -- "search_alg"-у наследует
-            (см.также trial_runner.py @line188 -- "runner = TrialRunner(search_alg or BasicVariantGenerator())"  но это в restore)
-    именно поэтому 
-    а в 
-    а ppo наследует 
+Там сначала определяется runner = TrialRunner(search_alg, <...>, trial_executor)   (ray/tune/tune.py @line156),   
+    TrialRunner экспортируется из  ray/tune/trial_runner.py
+                trial_executor в ray/tune/trial_runner.py @line94 меняется из None на RayTrialExecutor
+                            при этом RayTrialExecutor берется из ray.tune.ray_trial_executor
+И затем (ray/tune/tune.py ~@line170)      while not runner.is_finished():
+                                                 runner.step()
+                            
+runner.step() определено в  ray/tune/trial_runner.py @line215
+        определяется trial:  next_trial = self._get_next_trial()  =>  trial = self._scheduler_alg.choose_trial_to_run(self)
+            но важнее здесь предыдущая строчка   self._update_trial_queue(<...>)    (ray/tune/trial_runner.py @line388)
+                т.к. уже из этой queue ~тривиально выбирается trial
+            где trials = self._search_alg.next_trials()      (ray/tune/trial_runner.py @line502)
+            search_alg передается TrialRunner при инициализации в (ray/tune/tune.py @line156) и defaults to BasicVariantGenerator()
+                из ray/tune/suggest/basic_variant.py
+            В этом  basic_variant..py  главное   create_trial_from_spec,  которое берется из ray.tune.config_parser
+            а там просто создаётся объект Trial из ray.tune.trial   с заданными параметрами
+            
+            
+главное там --  self.trial_executor.start_trial(next_trial)
+            Выявлено вставкой после (и до тоже ставил) этой строчки следующего фрагмента кода:
+                import time
+                print("11111111111")
+                time.sleep(5000)                                              
+            (он запускает, но не мгновенно)_
+                                                 
+   строчка  trial.runner = self._setup_runner(trial)   (ray_trial_executor.py @line90)
+        выводит инфу от "<...> please ignore any CUDA init errors" до "keep_dims is deprecated<...>"  (с двух pid)
+        и кстати именно в этой строчке trial.runner превращается из None в Actor(DQNAgent, 15500<...>d307)
+                                            слово "DQNAgent" встречается в ray/rllib/agents/dqn.py @line136  "class DQNAgent"
+        но она ничего особого вроде не делает, что-то особое может быть только в trial._get_trainable_cls()  и trial.config()
+        
+Итерации обучения проходят в  self._train(trial)   (ray_trial_executor.py @line103)
+а в нём -- в   remote = trial.runner.train.remote()  (ray_trial_executor.py @line74)
+Непосредственно перед этой строчкой   remote = trial.runner.train.remote()  печать даёт следующие результаты:
+        trial =  DQN_SimpleCorridor3_0_lr=0.2
+            причем trial[6] выдает ошибку: ERROR: "Trial object doesn't support indexing"   т.е. не строка это, а объект
+        trial.runner =  Actor(DQNAgent, 15500392e70dd8b47b56d76639e4f3fce904d307)
+        trial.runner.train =  <ray.actor.ActorMethod object at 0x7fe293d49048>
+        trial.runner.train.remote =  <bound method ActorMethod.remote of <ray.actor.ActorMethod object at 0x7fe293d49048>>
+
+
+Действия агента и апдейт весов происходит в self.optimizer.step()  (ray/rllib/agents/dqn.py @line258)
+optimizer определен в строчке   "optimizer_class": "SyncReplayOptimizer"  (ray/rllib/agents/dqn.py @line124)
+    и берется из ray/rllib/optimizers/sync_replay_optimizer.py
+    где и определена функция step()
+    всё делается в @line89   batch = SampleBatch.concat_samples( ray.get([e.sample.remote() for e in self.remote_evaluators]))
+        то есть, запускается   self.remote_evaluators.sample.remote()
+    self.remote_evaluators  определено в dqn.py  @line223  посредством make_remote_evaluators
+            make_remote_evaluators  определено в ray/rllib/agents/agent.py @line481
+                который перенаправляет работу  _make_evaluator  @line566
+                она создаёт сессию TF, и возвращает "cls(session, <...args...>)"
+                cls  определено в agent.py @line490     cls = PolicyEvaluator.as_remote(**remote_args).remote
+                PolicyEvaluator  берется из ray.rllib.evaluation.policy_evaluator.py/PolicyEvaluator
+    sample() определена в ray/rllib/evaluation/policy_evaluator.py @line383
+    Действия агента происходят в    batches = [self.input_reader.next()]       (ray/rllib/evaluation/policy_evaluator.py @line392)
+    self.input_reader = input_creator(<...>)
+    input_creator=lambda ioctx: ioctx.default_sampler_input()
+    default_sampler_input() определен в ray/rllib/offline/io_context.py  как   self.evaluator.sampler
+        evaluator передается IOContext как self  в  self.io_context = IOContext(<...>)   (policy_evaluator.py @line324)
+        а self.sampler() определен в   self.sampler = SyncSampler(<...>)   (policy_evaluator.py @line360)
+    Короче,  "batches = self.input_reader.next()"  реально это   "batches = SyncSampler(<....>).next()"
+    Все действия проходят в    item = next(self.rollout_provider)     (ray/rllib/evaluation/sampler.py @line87)
+    
+env.step() делается где-то внутри   base_env.send_actions(actions_to_send)      (ray/rllib/evaluation/sampler.py @line300)
+    при этом self.base_env = BaseEnv.to_base_env(env)        (ray/rllib/evaluation/sampler.py @line127)
+    <...>obs,rew,done = self.vector_env.vector_step(action_vector)      (ray/rllib/env/base_env.py @line266)
+    ИТОГО,    obs, r, done, info = self.envs[i].step(actions[i])      (ray/rllib/env/vector_env.py @line115)
+    
+Вычисляются результаты внутри    eval_results = _do_policy_eval(<...>)         (ray/rllib/evaluation/sampler.py @line290)
+    а там -- внутри  policy._build_compute_actions(<...>)      (ray/rllib/evaluation/sampler.py @line480)
+    policy определено несколькими строчками раньше и это ray.rllib.agents.dqn.dqn_policy_graph.DQNPolicyGraph object
+    _build_compute_actions  определено в TFPolicyGraph, которому наследует DQNPolicyGraph
+                                            в ray/rllib/evaluation/tf_policy_graph.py @line358)
+    
+    
+
+
+=== Сохранение experience memory:
+ray/rllib/optimizers/sync_replay_optimizer.py  внутри _init   @line68      ReplayBuffer(buffer_size)
+!!!     в этом месте нам надо его загрузить из памяти вместо этого
+ReplayBuffer определен в  ray/rllib/optimizers/replay_buffer
+
+а апдейтится в том же    ray/rllib/optimizers/sync_replay_optimizer.py     внутри step     @line98
+self.replay_buffers[policy_id].add(
+!!!     в этом месте нам надо его сохранять, периодически
+        
+        
+=== ниже устаревшее
+runner.step() определено в  ray/tune/trial_runner.py @line215
+    главное там -- self._process_events()   [[выявлено принтом до и после этой строки, всё обучение между ними.]]
+    а в нём главное:   [[тоже выявлено принтом до и после строки]]
+    trial = self.trial_executor.get_next_available_trial()          ray/tune/trial_runner.py @line388
+            в этой строчке проводится несколько итераций обучения, потом выводится статистика, потом опять
+
+Собственно итерации проходят в "[result_id], _ = ray.wait(shuffled_results)"     ray.tune.ray_trial_executor @line240
+    wait() определена в ray/worker.py @line2316
+
+
+            в ray/tune/trial_runner.py @line41  сказано, что TrialRunner наследует классу object,  здесь -- "search_alg"-у наследует
+                (см.также trial_runner.py @line188 -- "runner = TrialRunner(search_alg or BasicVariantGenerator())"  но это в restore)
+            BasicVariantGenerator наследует tune/suggest/search.py/SearchAlgorithm,  а это просто hyperparameter search
+    
+Сама нейросетка работает и обучается в  ray/rllib/agents/dqn/dqn.py @line258  "self.optimizer.step()"

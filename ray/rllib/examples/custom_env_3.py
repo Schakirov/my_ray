@@ -66,11 +66,12 @@ if __name__ == "__main__":
         "demo": {
             "run": "DQN",
             "env": SimpleCorridor3,  # or "corridor" if registered above
+            "checkpoint_freq": 1,
             "stop": {
                 "timesteps_total": 1000,
             },
             "config": {
-                "lr": grid_search([0.2]),  # try different lrs
+                "lr": grid_search([0.02]),  # try different lrs
                 "schedule_max_timesteps": 1,  #exploration decreases from 1 to 0.1 over that
                 "exploration_final_eps": 0.2,
                 "learning_starts": 0,  #before that no learning at all

@@ -5,6 +5,8 @@ from __future__ import print_function
 import numpy as np
 import random
 import sys
+import pickle
+import os.path
 
 from ray.rllib.optimizers.segment_tree import SumSegmentTree, MinSegmentTree
 from ray.rllib.utils.annotations import DeveloperAPI
@@ -33,6 +35,9 @@ class ReplayBuffer(object):
         self._num_sampled = 0
         self._evicted_hit_stats = WindowStat("evicted_hit", 1000)
         self._est_size_bytes = 0
+        path_link = '/home/ai/del6/experience/experience.experience'
+        if os.path.isfile(path_link):
+            self.load_buffer(path_link)
 
     def __len__(self):
         return len(self._storage)
@@ -97,6 +102,24 @@ class ReplayBuffer(object):
         ]
         self._num_sampled += batch_size
         return self._encode_sample(idxes)
+    
+    @DeveloperAPI
+    def save_buffer(self):
+        what_is_saved = (self._storage, \
+            self._maxsize, self._next_idx, self._hit_count, self._eviction_started, \
+            self._num_added, self._num_sampled, self._evicted_hit_stats, self._est_size_bytes)
+        with open('/home/ai/del6/experience/experience.experience', 'wb') as fp:
+            pickle.dump(what_is_saved, fp)
+        #import time
+        #time.sleep(200)
+        
+    def load_buffer(self, path_link):
+        with open (path_link, 'rb') as fp:
+            items = pickle.load(fp)
+            (self._storage, \
+            self._maxsize, self._next_idx, self._hit_count, self._eviction_started, \
+            self._num_added, self._num_sampled, self._evicted_hit_stats, self._est_size_bytes) = items
+            
 
     @DeveloperAPI
     def stats(self, debug=False):

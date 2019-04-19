@@ -14,6 +14,7 @@ from ray.tune.error import TuneError
 from ray.tune.logger import NoopLogger
 from ray.tune.trial import Trial, Resources, Checkpoint
 from ray.tune.trial_executor import TrialExecutor
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,14 @@ class RayTrialExecutor(TrialExecutor):
         """Start one iteration of training and save remote id."""
 
         assert trial.status == Trial.RUNNING, trial.status
+        print("trial = ", trial)
+        #print("trial[6] = ", trial[6])  ERROR: "Trial object doesn't support indexing"
+        print("trial.runner = ", trial.runner)
+        print("trial.runner.train = ", trial.runner.train)
+        print("trial.runner.train.remote = ", trial.runner.train.remote)
         remote = trial.runner.train.remote()
+        print("2222222x")
+        #time.sleep(2000)
 
         # Local Mode
         if isinstance(remote, dict):
@@ -86,7 +94,7 @@ class RayTrialExecutor(TrialExecutor):
         """
         prior_status = trial.status
         self.set_status(trial, Trial.RUNNING)
-        trial.runner = self._setup_runner(trial)
+        trial.runner = self._setup_runner(trial)  #here, trial.runner turns from None to Actor(DQNAgent, ...)
         if not self.restore(trial, checkpoint):
             if trial.status == Trial.ERROR:
                 raise RuntimeError(
