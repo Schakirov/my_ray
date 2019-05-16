@@ -38,11 +38,11 @@ DEFAULT_CONFIG = with_common_config({
     # control the initial value of noisy nets
     "sigma0": 0.5,
     # Whether to use dueling dqn
-    "dueling": True,
+    "dueling": False,
     # Whether to use double dqn
-    "double_q": True,
+    "double_q": False,
     # Hidden layer sizes of the state and action value networks
-    "hiddens": [256],
+    "hiddens": [48, 48, 24],
     # N-step Q learning
     "n_step": 1,
 
@@ -96,7 +96,7 @@ DEFAULT_CONFIG = with_common_config({
     # Epsilon to add to the TD errors when updating priorities.
     "prioritized_replay_eps": 1e-6,
     # Whether to LZ4 compress observations
-    "compress_observations": True,
+    "compress_observations": False, #was True
 
     # === Optimization ===
     # Learning rate for adam optimizer
@@ -253,18 +253,13 @@ class DQNAgent(Agent):
 
         # Do optimization steps
         start = time.time()
-        print("111111")
         while (self.global_timestep - start_timestep <
                self.config["timesteps_per_iteration"]
                ) or time.time() - start < self.config["min_iter_time_s"]:
-            print("global_timestep = ", self.global_timestep)
-            print("start_timestep = ", start_timestep)
-            print("self.config('timesteps_per_iteration') = ", self.config["timesteps_per_iteration"])
             self.optimizer.step()
             print("I've just made an optimization step!")
-            self.update_target_if_needed()
+            self.update_target_if_needed()  #update target network
             print("target updated")
-        print("22222")
         if self.config["per_worker_exploration"]:
             # Only collect metrics from the third of workers with lowest eps
             result = self.optimizer.collect_metrics(

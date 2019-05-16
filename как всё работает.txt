@@ -74,16 +74,28 @@ env.step() делается где-то внутри   base_env.send_actions(act
                                             в ray/rllib/evaluation/tf_policy_graph.py @line358)
     
     
+=== гамма определена в  dqn_policy_graph => class QLoss => __init__
+НО гамма также определена в agent.py, что имеет приоритет, проверено via print.
+Поэтому в итоге гамму я задаю в custom_env_3.py, так удобнее всего.
 
+=== exploration задается внутри нейросетки... в dqn_policy_graph => class QValuePolicy @line~212
+exploration_memory я записываю в replay_buffer.py @line~50, она правильная.
+
+=== параметры DQN задаются два раза -- в dqn.py @line~30,  в dqn_policy_graph @line~20
+Приоритет имеет dqn.py,  проверено via print.
 
 === Сохранение experience memory:
+--- Всё сохраняется внутри ray/rllib/optimizers/replay_buffer.py
 ray/rllib/optimizers/sync_replay_optimizer.py  внутри _init   @line68      ReplayBuffer(buffer_size)
-!!!     в этом месте нам надо его загрузить из памяти вместо этого
+!!!     в этом месте нам надо его загрузить из памяти вместо этого   (~@line39  ray/rllib/optimizers/replay_buffer.py)
 ReplayBuffer определен в  ray/rllib/optimizers/replay_buffer
 
 а апдейтится в том же    ray/rllib/optimizers/sync_replay_optimizer.py     внутри step     @line98
 self.replay_buffers[policy_id].add(
-!!!     в этом месте нам надо его сохранять, периодически
+!!!     в этом месте нам надо его сохранять, периодически   (~@line111  ray/rllib/optimizers/replay_buffer.py)
+
+=== лямбда в return
+ray/rllib/agents/dqn/dqn_policy_graph.py внутри class QLoss  gamma
         
         
 === ниже устаревшее

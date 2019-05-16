@@ -36,8 +36,8 @@ class ReplayBuffer(object):
         self._evicted_hit_stats = WindowStat("evicted_hit", 1000)
         self._est_size_bytes = 0
         path_link = '/home/ai/del6/experience/experience.experience'
-        if os.path.isfile(path_link):
-            self.load_buffer(path_link)
+        #if os.path.isfile(path_link):
+        #    self.load_buffer(path_link)
 
     def __len__(self):
         return len(self._storage)
@@ -46,6 +46,10 @@ class ReplayBuffer(object):
     def add(self, obs_t, action, reward, obs_tp1, done, weight):
         data = (obs_t, action, reward, obs_tp1, done)
         self._num_added += 1
+        
+        with open('/home/ai/del6/experience/experience.txt', 'a') as f:
+            #print(obs_t, action, reward, obs_tp1, done, "\n", file=f)
+            print(obs_t[0][0][0], action, reward, obs_tp1[0][0][0], done, "\n", file=f)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
@@ -108,8 +112,8 @@ class ReplayBuffer(object):
         what_is_saved = (self._storage, \
             self._maxsize, self._next_idx, self._hit_count, self._eviction_started, \
             self._num_added, self._num_sampled, self._evicted_hit_stats, self._est_size_bytes)
-        with open('/home/ai/del6/experience/experience.experience', 'wb') as fp:
-            pickle.dump(what_is_saved, fp)
+        #with open('/home/ai/del6/experience/experience.experience', 'wb') as fp:
+        #    pickle.dump(what_is_saved, fp)
         #import time
         #time.sleep(200)
         

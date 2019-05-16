@@ -58,7 +58,7 @@ COMMON_CONFIG = {
 
     # === Environment ===
     # Discount factor of the MDP
-    "gamma": 0.99,
+    "gamma": 0,# .99,
     # Number of steps after which the episode is forced to terminate
     "horizon": None,
     # Arguments to pass to the env creator

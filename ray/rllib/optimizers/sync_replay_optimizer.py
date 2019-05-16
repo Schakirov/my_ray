@@ -29,7 +29,7 @@ class SyncReplayOptimizer(PolicyOptimizer):
     def _init(self,
               learning_starts=1000,
               buffer_size=10000,
-              prioritized_replay=True,
+              prioritized_replay=False,
               prioritized_replay_alpha=0.6,
               prioritized_replay_beta=0.4,
               schedule_max_timesteps=100000,
@@ -96,10 +96,10 @@ class SyncReplayOptimizer(PolicyOptimizer):
             for policy_id, s in batch.policy_batches.items():
                 for row in s.rows():
                     self.replay_buffers[policy_id].add(
-                        pack_if_needed(row["obs"]),
+                        pack_if_needed(row["obs"]) if 0 else row["obs"],
                         row["actions"],
                         row["rewards"],
-                        pack_if_needed(row["new_obs"]),
+                        pack_if_needed(row["new_obs"])  if 0 else row["new_obs"],
                         row["dones"],
                         weight=None)
         if self.num_steps_sampled >= self.replay_starts:

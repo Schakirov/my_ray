@@ -14,6 +14,8 @@ from __future__ import print_function
 import numpy as np
 import gym
 from gym.spaces import Discrete, Box
+from termcolor import colored
+import pyttsx3
 
 import ray
 from ray.tune import run_experiments, grid_search
@@ -30,31 +32,67 @@ class SimpleCorridor3(gym.Env):
     def __init__(self, config):
         self.end_pos = config["corridor_length"]
         self.cur_pos = 0
-        self.action_space = Discrete(2)
+        self.action_space = Discrete(3)
         self.observation_space = Box(
             0.0, 1.0, shape=(84, 84, 3), dtype=np.float32)
+        self.speak_engine = pyttsx3.init();
+        self.auto_img = np.zeros((84,84,3))
+        self.auto_img_open = 0.5 + 0.1 * np.random.randn(84,84,3)
 
     def reset(self):
-        self.cur_pos = np.ones((84,84,3)) * 100
+        self.cur_pos = self.auto_img #np.ones((84,84,3)) * 100
         return self.cur_pos
 
     def step(self, action):
-        assert action in [0, 1], action
-        if action == 0:
-            print("left! snapshot in 2 sec")
-        elif action == 1:
-            print("right! snapshot in 2 sec")
-        time.sleep(2)
-        print("snapshot!")
-        cam = VideoCapture(5)
-        s, img = cam.read()
-        img = cv2.resize(img, (84,84))/255.0
-        print("rew = np.mean(img) = ", np.mean(img))
-        
-        print("Thinking... I'll command you in 2 sec\n")
-        time.sleep(2)
-        done = np.mean(img) < 0.1
-        rew = np.mean(img)
+        assert action in [0, 1, 2], action
+        regime = "auto"
+        if regime == "manual":
+            time.sleep(0.5)
+            if action == 0:
+                print(colored("down!", "red"), "snapshot in 2 sec")
+                self.speak_engine.say("vniz");
+                self.speak_engine.runAndWait() ;
+                rew_cost = -0.2
+            elif action == 1:
+                print(colored("---", "red"), "snapshot in 2 sec")
+                rew_cost = 0
+            elif action == 2:
+                print(colored("up!", "red"), "snapshot in 2 sec")
+                self.speak_engine.say("vvieierkhkhkh");
+                self.speak_engine.runAndWait() ;
+                rew_cost = -0.2
+            time.sleep(2)
+            print("snapshot!")
+            cam = VideoCapture(0)
+            s, img = cam.read()
+            img = cv2.resize(img, (84,84))/255.0
+            print("rew = np.mean(img) = ", np.mean(img))
+            print("Thinking... I'll command you in 2 sec\n")
+            time.sleep(1.5)
+        if regime == "auto":
+            time.sleep(0.05)
+            rew_cost = 0
+            if action == 0:
+                self.auto_img = np.zeros((84,84,3))
+                rew_cost = -0.2
+                rew_diminish = 1
+                print(self.auto_img[0][0][0])
+            if action == 1:
+                rew_cost = 0
+                print(self.auto_img[0][0][0])
+                rew_diminish = 1
+            if action == 2:
+                #self.auto_img = np.ones((84,84,3)) * 0.5
+                #self.auto_img[1][1][1] = 0;
+                #self.auto_img[4][4][2] = 1
+                self.auto_img = self.auto_img_open
+                #self.auto_img = np.tile(array([1,2,3]), (84, 1))
+                rew_cost = -0.2
+                rew_diminish = 1
+                print(self.auto_img[0][0][0])
+            img = self.auto_img
+        rew = (np.mean(img) + rew_cost) * rew_diminish
+        done = np.mean(img) < 0# .7  #always done  (so effective gamma = 0)
         return img, rew, done, {}  # "rew if done else 0"  was here
 
 
@@ -66,20 +104,24 @@ if __name__ == "__main__":
         "demo": {
             "run": "DQN",
             "env": SimpleCorridor3,  # or "corridor" if registered above
-            "checkpoint_freq": 1,
+            "checkpoint_freq": 1000,
+            "restore": False,
             "stop": {
-                "timesteps_total": 1000,
+                "timesteps_total": 10000000,
             },
             "config": {
-                "lr": grid_search([0.02]),  # try different lrs
-                "schedule_max_timesteps": 1,  #exploration decreases from 1 to 0.1 over that
+                "lr": grid_search([0.0002]),  # try different lrs
+                "gamma": 0.5,
+                "buffer_size": 5000,
+                "schedule_max_timesteps": 40,  #exploration decreases from 1 to 0.1 over that
                 "exploration_final_eps": 0.2,
                 "learning_starts": 0,  #before that no learning at all
-                "train_batch_size": 4,
+                "train_batch_size": 32,
                 "timesteps_per_iteration": 4, # only after that target_network_update_freq is checked
                 "target_network_update_freq": 4,  #not 500
                 "dueling": False,
                 "double_q": False,
+                "prioritized_replay": False,
                 "num_workers": 1,  # parallelism
                 "env_config": {
                     "corridor_length": 5,

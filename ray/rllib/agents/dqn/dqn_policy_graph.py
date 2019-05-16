@@ -24,7 +24,7 @@ class QNetwork(object):
                  model,
                  num_actions,
                  dueling=False,
-                 hiddens=[256],
+                 hiddens=[8, 8],   #doesn't matter, because it's defined in dqn.py @line~30
                  use_noisy=False,
                  num_atoms=1,
                  v_min=-10.0,
@@ -32,6 +32,7 @@ class QNetwork(object):
                  sigma0=0.5,
                  parameter_noise=False):
         self.model = model
+        #import time;         print("hiddens=", hiddens);         time.sleep(1000)
         with tf.variable_scope("action_value"):
             if hiddens:
                 action_out = model.last_layer
@@ -224,11 +225,13 @@ class QLoss(object):
                  importance_weights,
                  rewards,
                  done_mask,
-                 gamma=0.99,
+                 gamma=0, #.99, #.99, #0.99, #doesn't matter because it's defined in agent.py
                  n_step=1,
                  num_atoms=1,
                  v_min=-10.0,
                  v_max=10.0):
+        
+        #import time; print("gamma = ", gamma); time.sleep(2000)
 
         if num_atoms > 1:
             # Distributional Q-learning which corresponds to an entropy loss
