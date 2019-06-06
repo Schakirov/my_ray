@@ -45,12 +45,12 @@ class SimpleCorridor3(gym.Env):
 
     def step(self, action):
         assert action in [0, 1, 2], action
-        regime = "auto"
+        regime = "manual"
         if regime == "manual":
             time.sleep(0.5)
             if action == 0:
                 print(colored("down!", "red"), "snapshot in 2 sec")
-                self.speak_engine.say("vniz");
+                self.speak_engine.say("niz");
                 self.speak_engine.runAndWait() ;
                 rew_cost = -0.2
             elif action == 1:
@@ -58,7 +58,7 @@ class SimpleCorridor3(gym.Env):
                 rew_cost = 0
             elif action == 2:
                 print(colored("up!", "red"), "snapshot in 2 sec")
-                self.speak_engine.say("vvieierkhkhkh");
+                self.speak_engine.say("vieierkhkhkh");
                 self.speak_engine.runAndWait() ;
                 rew_cost = -0.2
             time.sleep(2)
@@ -91,7 +91,7 @@ class SimpleCorridor3(gym.Env):
                 rew_diminish = 1
                 print(self.auto_img[0][0][0])
             img = self.auto_img
-        rew = (np.mean(img) + rew_cost) * rew_diminish
+        rew = (np.mean(img) + rew_cost)
         done = np.mean(img) < 0# .7  #always done  (so effective gamma = 0)
         return img, rew, done, {}  # "rew if done else 0"  was here
 

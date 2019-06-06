@@ -16,6 +16,7 @@ import gym
 from gym.spaces import Discrete, Box
 from termcolor import colored
 import pyttsx3
+import keyboard
 
 import ray
 from ray.tune import run_experiments, grid_search
@@ -41,6 +42,7 @@ class SimpleCorridor4(gym.Env):
         self.history = np.zeros((3,5))
         self.img2 = np.zeros((84,84,3))
         self.count = 0
+        self.sleep_status = 0  #initially awake
 
     def reset(self):
         self.cur_pos = self.img2 #np.ones((84,84,3)) * 100
@@ -56,9 +58,9 @@ class SimpleCorridor4(gym.Env):
         self.history[action, 4] = 1
         self.img2 = np.zeros((84,84,3))
         self.img2[0:3,0:5,0] = self.history
-        regime = "auto"
-        if regime == "manual":
-            time.sleep(0.125)
+        regime = "manual"
+        if regime == "manual" and not self.sleep_status:
+            time.sleep(0.5)
             if action == 0:
                 print(colored("m", "red"), "snapshot in 2 sec")
                 self.speak_engine.say("m");
@@ -76,11 +78,22 @@ class SimpleCorridor4(gym.Env):
             cam = VideoCapture(0)
             s, img = cam.read()
             img = cv2.resize(img, (84,84))/255.0
-            rew = np.mean(img)
+            rew = self.operator_reward() # np.mean(img) + self.operator_reward()
             
             print("rew = np.mean(img) = ", np.mean(img))
             print("Thinking... I'll command you in 2 sec\n")
-            time.sleep(0.25)
+        if regime == "manual" and self.sleep_status:
+            rew = -912.912  #replay_buffer line47 zakladka
+            if keyboard.is_pressed('w'):
+                self.sleep_status = 0
+                print(colored("I WAKE UP!", "green"))
+                self.speak_engine.say("I WAKE UP!");
+                self.speak_engine.runAndWait() ;
+                time.sleep(1)
+            if keyboard.is_pressed('c'):
+                time.sleep(0.25)
+                print(colored('paused. To continue, print "d"', 'green'))
+                keyboard.wait('d')
         if regime == "auto":
             time.sleep(0.05)
             if action == 0:
@@ -104,6 +117,71 @@ class SimpleCorridor4(gym.Env):
         print("rew = ", rew, "count = ", self.count, "history = ", self.history)
         done = rew < 0# .7  #always done  (so effective gamma = 0)
         return self.img2, rew, done, {}  # "rew if done else 0"  was here
+
+    
+    def operator_reward(self):
+        def print_punishment():
+            print(colored('Punishment administered!', 'yellow'))
+        def print_reward():
+            print(colored('Reward administered!', 'green'))
+        rewards = 0
+        print(colored('your reward?', 'yellow'))
+        self.keyboard_history = keyboard.start_recording()
+        time.sleep(2)
+        self.keyboard_history = keyboard.stop_recording()
+        if len( str(self.keyboard_history) ) > 2:   #"[]" is 2
+            operator_pressed_key = str(self.keyboard_history[0])
+        else:
+            operator_pressed_key = None
+        if operator_pressed_key == 'KeyboardEvent(1 down)':
+            print_punishment()
+            rewards = -0.5
+        if operator_pressed_key == 'KeyboardEvent(2 down)':
+            print_punishment()
+            rewards = -0.4
+        if operator_pressed_key == 'KeyboardEvent(3 down)':
+            print_punishment()
+            rewards = -0.3
+        if operator_pressed_key == 'KeyboardEvent(4 down)':
+            print_punishment()
+            rewards = -0.2
+        if operator_pressed_key == 'KeyboardEvent(5 down)':
+            print_punishment()
+            rewards = -0.1
+        if operator_pressed_key == 'KeyboardEvent(6 down)':
+            print_reward()
+            rewards = +0.1
+        if operator_pressed_key == 'KeyboardEvent(7 down)':
+            print_reward()
+            rewards = +0.2
+        if operator_pressed_key == 'KeyboardEvent(8 down)':
+            print_reward()
+            rewards = +0.3
+        if operator_pressed_key == 'KeyboardEvent(9 down)':
+            print_reward()
+            rewards = +0.4
+        if operator_pressed_key == 'KeyboardEvent(0 down)':
+            print_reward()
+            rewards = +0.5
+        if operator_pressed_key == 'KeyboardEvent(+ down)':
+            print_reward()
+            rewards = +0.5
+        if operator_pressed_key == 'KeyboardEvent(- down)':
+            print_punishment()
+            rewards = -0.5
+        if operator_pressed_key == 'KeyboardEvent(s down)':
+            self.sleep_status = 1
+            print(colored("GOTO SLEEP. GOOD NIGHT !", "green"))
+            self.speak_engine.say("GOTO SLEEP. GOOD NIGHT !");
+            self.speak_engine.runAndWait() ;
+            time.sleep(1)
+        if operator_pressed_key == 'KeyboardEvent(w down)':
+            self.sleep_status = 0
+            print(colored("I WAKE UP!", "green"))
+            self.speak_engine.say("I WAKE UP!");
+            self.speak_engine.runAndWait() ;
+            time.sleep(1)        
+        return rewards
 
 
 if __name__ == "__main__":
@@ -139,3 +217,5 @@ if __name__ == "__main__":
             },
         },
     })
+                
+

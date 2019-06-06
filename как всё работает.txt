@@ -72,6 +72,8 @@ env.step() делается где-то внутри   base_env.send_actions(act
     policy определено несколькими строчками раньше и это ray.rllib.agents.dqn.dqn_policy_graph.DQNPolicyGraph object
     _build_compute_actions  определено в TFPolicyGraph, которому наследует DQNPolicyGraph
                                             в ray/rllib/evaluation/tf_policy_graph.py @line358)
+                                            
+=== где апдейтятся веса?
     
     
 === гамма определена в  dqn_policy_graph => class QLoss => __init__
@@ -84,6 +86,11 @@ exploration_memory я записываю в replay_buffer.py @line~50, она п
 === параметры DQN задаются два раза -- в dqn.py @line~30,  в dqn_policy_graph @line~20
 Приоритет имеет dqn.py,  проверено via print.
 
+=== Когда нам нужно обучать на имеющейся exp.memory, но прекратить env.step
+replay_buffer.py @line46  ("add")  просто ставить pass, если некая переменная == "sleep"
+Но как передать эту переменную?  просто кодируем ревордом, если он -912.912, значит sleep
+
+
 === Сохранение experience memory:
 --- Всё сохраняется внутри ray/rllib/optimizers/replay_buffer.py
 ray/rllib/optimizers/sync_replay_optimizer.py  внутри _init   @line68      ReplayBuffer(buffer_size)
@@ -94,9 +101,7 @@ ReplayBuffer определен в  ray/rllib/optimizers/replay_buffer
 self.replay_buffers[policy_id].add(
 !!!     в этом месте нам надо его сохранять, периодически   (~@line111  ray/rllib/optimizers/replay_buffer.py)
 
-=== лямбда в return
-ray/rllib/agents/dqn/dqn_policy_graph.py внутри class QLoss  gamma
-        
+
         
 === ниже устаревшее
 runner.step() определено в  ray/tune/trial_runner.py @line215

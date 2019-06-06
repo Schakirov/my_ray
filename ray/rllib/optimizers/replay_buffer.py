@@ -44,24 +44,27 @@ class ReplayBuffer(object):
 
     @DeveloperAPI
     def add(self, obs_t, action, reward, obs_tp1, done, weight):
-        data = (obs_t, action, reward, obs_tp1, done)
-        self._num_added += 1
-        
-        with open('/home/ai/del6/experience/experience.txt', 'a') as f:
-            #print(obs_t, action, reward, obs_tp1, done, "\n", file=f)
-            print(obs_t[0][0][0], action, reward, obs_tp1[0][0][0], done, "\n", file=f)
-
-        if self._next_idx >= len(self._storage):
-            self._storage.append(data)
-            self._est_size_bytes += sum(sys.getsizeof(d) for d in data)
+        if (reward + 912.912) < 0.5:
+            pass
         else:
-            self._storage[self._next_idx] = data
-        if self._next_idx + 1 >= self._maxsize:
-            self._eviction_started = True
-        self._next_idx = (self._next_idx + 1) % self._maxsize
-        if self._eviction_started:
-            self._evicted_hit_stats.push(self._hit_count[self._next_idx])
-            self._hit_count[self._next_idx] = 0
+            data = (obs_t, action, reward, obs_tp1, done)
+            self._num_added += 1
+            
+            #with open('/home/ai/del6/experience/experience.txt', 'a') as f:
+            #    #print(obs_t, action, reward, obs_tp1, done, "\n", file=f)
+            #    print(obs_t[0][0][0], action, reward, obs_tp1[0][0][0], done, "\n", file=f)
+
+            if self._next_idx >= len(self._storage):
+                self._storage.append(data)
+                self._est_size_bytes += sum(sys.getsizeof(d) for d in data)
+            else:
+                self._storage[self._next_idx] = data
+            if self._next_idx + 1 >= self._maxsize:
+                self._eviction_started = True
+            self._next_idx = (self._next_idx + 1) % self._maxsize
+            if self._eviction_started:
+                self._evicted_hit_stats.push(self._hit_count[self._next_idx])
+                self._hit_count[self._next_idx] = 0
 
     def _encode_sample(self, idxes):
         obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], []
