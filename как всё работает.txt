@@ -90,6 +90,9 @@ exploration_memory я записываю в replay_buffer.py @line~50, она п
 replay_buffer.py @line46  ("add")  просто ставить pass, если некая переменная == "sleep"
 Но как передать эту переменную?  просто кодируем ревордом, если он -912.912, значит sleep
 
+=== лямбда в return
+ray/rllib/agents/dqn/dqn_policy_graph.py внутри class QLoss  gamma
+
 
 === Сохранение experience memory:
 --- Всё сохраняется внутри ray/rllib/optimizers/replay_buffer.py
